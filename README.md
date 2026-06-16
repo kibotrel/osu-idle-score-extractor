@@ -5,6 +5,10 @@
 
 A Chrome extension that extracts XP statistics from osu!idle game result screens and exports them for analysis and tracking.
 
+<div align="center">
+  <img width="412" height="543" alt="extension user interface" src="https://github.com/user-attachments/assets/31561498-28d1-4306-8a1d-16a08f4e82f2" />
+</div>
+
 ## 🎯 Extension Capabilities
 
 **Data Extraction**
