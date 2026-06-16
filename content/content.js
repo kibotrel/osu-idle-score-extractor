@@ -75,25 +75,36 @@ function msToSeconds(ms) {
   return Math.round(ms / 1000);
 }
 
-function queryBeatmapMeta(artistTitle) {
+function blobToDataURL(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function queryBeatmapData(artistTitle) {
   return new Promise((resolve) => {
     const request = indexedDB.open('beatmaps');
 
-    request.onerror = () => resolve(null);
+    request.onerror = () => resolve({ record: null, backgroundBlob: null });
     request.onsuccess = (event) => {
       const db = event.target.result;
+      const stores = db.objectStoreNames;
+      const hasMeta = stores.contains('meta');
+      const hasFiles = stores.contains('files');
 
-      if (!db.objectStoreNames.contains('meta')) {
+      if (!hasMeta) {
         db.close();
 
-        return resolve(null);
+        return resolve({ record: null, backgroundBlob: null });
       }
 
-      const transaction = db.transaction('meta', 'readonly');
-      const store = transaction.objectStore('meta');
-      const cursorRequest = store.openCursor();
-
-      let found = null;
+      const metaTransaction = db.transaction('meta', 'readonly');
+      const metaStore = metaTransaction.objectStore('meta');
+      const cursorRequest = metaStore.openCursor();
 
       cursorRequest.onsuccess = (e) => {
         const cursor = e.target.result;
@@ -101,48 +112,69 @@ function queryBeatmapMeta(artistTitle) {
         if (!cursor) {
           db.close();
 
-          return resolve(found);
+          return resolve({ record: null, backgroundBlob: null });
         }
 
         const record = cursor.value;
         const recordKey = `${record.artist} - ${record.title}`;
 
-        if (recordKey === artistTitle) {
-          found = record;
-          db.close();
-
-          return resolve(found);
+        if (recordKey !== artistTitle) {
+          return cursor.continue();
         }
 
-        cursor.continue();
+        if (!hasFiles || record.id == null) {
+          db.close();
+
+          return resolve({ record, backgroundBlob: null });
+        }
+
+        const filesTransaction = db.transaction('files', 'readonly');
+        const filesStore = filesTransaction.objectStore('files');
+        const prefix = `${record.id}/`;
+        const range = IDBKeyRange.bound(prefix, prefix + '\uffff');
+        const filesCursor = filesStore.openCursor(range);
+
+        filesCursor.onsuccess = (cursorEvent) => {
+          const fileCursor = cursorEvent.target.result;
+
+          if (!fileCursor) {
+            db.close();
+
+            return resolve({ record, backgroundBlob: null });
+          }
+
+          const key = fileCursor.key;
+
+          if (typeof key === 'string' && /\.(png|jpe?g|gif|webp)$/i.test(key)) {
+            const blob = fileCursor.value;
+
+            db.close();
+
+            return resolve({
+              record,
+              backgroundBlob: blob instanceof Blob ? blob : null,
+            });
+          }
+
+          fileCursor.continue();
+        };
+
+        filesCursor.onerror = () => {
+          db.close();
+          resolve({ record, backgroundBlob: null });
+        };
       };
 
       cursorRequest.onerror = () => {
         db.close();
-        resolve(null);
+        resolve({ record: null, backgroundBlob: null });
       };
     };
   });
 }
 
-function capitalize(name) {
-  return name.at(0).toUpperCase() + name.slice(1);
-}
-
 function xpPerSec(xp, duration) {
   return duration ? (xp / duration).toFixed(2) : xp;
-}
-
-function formatPreview({ skills, duration }) {
-  const active = Object.entries(skills).filter(([, xp]) => xp > 0);
-  const lines = active.map(
-    ([name, xp]) => `${capitalize(name)}: ${xpPerSec(xp, duration)} xp/s`,
-  );
-  const totalXP = active.reduce((sum, [, xp]) => sum + xp, 0);
-
-  lines.push(`Total: ${xpPerSec(totalXP, duration)} xp/s`);
-
-  return lines.join('\n');
 }
 
 function formatFull({ artistTitle, version, duration, skills }) {
@@ -166,9 +198,11 @@ async function extractAll() {
   const skills = extractSkills();
 
   let duration = null;
+  let difficulty = null;
+  let backgroundUrl = null;
 
   if (artistTitle) {
-    const record = await queryBeatmapMeta(artistTitle);
+    const { record, backgroundBlob } = await queryBeatmapData(artistTitle);
 
     if (record?.versions) {
       const match = record.versions.find((v) => v.version === version);
@@ -176,22 +210,33 @@ async function extractAll() {
       if (match?.total_length != null) {
         duration = msToSeconds(match.total_length);
       }
+
+      if (match?.difficulty != null) {
+        difficulty = match.difficulty;
+      }
+    }
+
+    if (backgroundBlob) {
+      backgroundUrl = await blobToDataURL(backgroundBlob);
     }
   }
 
-  return { artistTitle, version, duration, skills };
+  return { artistTitle, version, duration, difficulty, skills, backgroundUrl };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'EXTRACT_DATA') {
-    extractAll().then((data) => {
-      sendResponse({
-        success: true,
-        data,
-        previewText: formatPreview(data),
-        fullText: formatFull(data),
+    extractAll()
+      .then((data) => {
+        sendResponse({
+          success: true,
+          data,
+          fullText: formatFull(data),
+        });
+      })
+      .catch(() => {
+        sendResponse({ success: false });
       });
-    });
   }
   return true;
 });
