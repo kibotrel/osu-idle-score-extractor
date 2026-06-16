@@ -6,7 +6,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const tab = tabs[0];
 
       if (!tab?.id) {
-        sendResponse({ success: false, error: 'Aucun onglet actif' });
+        sendResponse({ success: false, error: 'No active tab' });
 
         return;
       }
