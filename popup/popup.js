@@ -1,22 +1,61 @@
 const extractButton = document.getElementById('btn-extract');
-const statusMessage = document.getElementById('status-message');
-const previewSection = document.getElementById('preview-section');
-const dataPreview = document.getElementById('data-preview');
+const mainElement = document.querySelector('main');
+const statsSection = document.getElementById('stats-section');
+
+let statusMessageElement = null;
+
+function setStatus(text) {
+  if (!text) {
+    if (statusMessageElement) {
+      statusMessageElement.remove();
+      statusMessageElement = null;
+    }
+
+    return;
+  }
+
+  if (!statusMessageElement) {
+    statusMessageElement = document.createElement('p');
+    statusMessageElement.id = 'status-message';
+    mainElement.insertBefore(statusMessageElement, statsSection);
+  }
+  statusMessageElement.textContent = text;
+}
+
+const songBackground = document.getElementById('song-background');
+const songTitle = document.getElementById('song-title');
+const songVersion = document.getElementById('song-version');
+const songDuration = document.getElementById('song-duration');
+const skillsGrid = document.getElementById('skills-grid');
+const totalXpDiv = document.getElementById('total-xp');
+const totalXpValue = document.getElementById('total-value');
 const copyFeedback = document.getElementById('copy-feedback');
+
+const SKILL_ORDER = [
+  'accuracy',
+  'stamina',
+  'consistency',
+  'reading',
+  'concentration',
+  'speedjam',
+  'speed',
+  'coordination',
+  'jackspeed',
+  'memory',
+  'release',
+];
 
 let extractedText = '';
 
 async function extractFromPage() {
-  statusMessage.textContent = 'Extracting...';
-  extractButton.disabled = true;
+  setStatus('Extracting...');
 
   let tabs;
 
   try {
     tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   } catch (err) {
-    statusMessage.textContent = 'Could not access the active tab.';
-    extractButton.disabled = false;
+    setStatus('Could not access the active tab.');
 
     return;
   }
@@ -24,53 +63,119 @@ async function extractFromPage() {
   const tab = tabs.at(0);
 
   if (!tab?.id) {
-    statusMessage.textContent = 'No active tab found.';
-    extractButton.disabled = false;
+    setStatus('No active tab found.');
 
     return;
   }
+
+  const timeout = setTimeout(() => {
+    setStatus('Extraction timed out. Try reloading the page.');
+  }, 5000);
 
   chrome.tabs.sendMessage(
     tab.id,
     { type: 'EXTRACT_DATA' },
     async (response) => {
-      extractButton.disabled = false;
+      clearTimeout(timeout);
 
       if (chrome.runtime.lastError) {
-        statusMessage.textContent =
-          'Content script not available on this page.';
+        setStatus('Content script not available. Try reloading the page.');
 
         return;
       }
 
       if (!response?.success) {
-        statusMessage.textContent = 'Extraction failed.';
+        setStatus('Extraction failed.');
+
+        return;
+      }
+
+      const hasSkills = Object.values(response.data.skills).some(
+        (xp) => xp > 0,
+      );
+
+      if (!hasSkills) {
+        setStatus('No result screen found on this page.');
 
         return;
       }
 
       extractedText = response.fullText ?? '';
 
-      if (!extractedText) {
-        statusMessage.textContent = 'No result screen found on this page.';
-
-        return;
-      }
-
-      dataPreview.value = response.previewText ?? '';
-      previewSection.hidden = false;
+      statsSection.hidden = false;
       copyFeedback.hidden = true;
 
-      const skills = response.data?.skills ?? {};
-      const active = Object.values(skills).filter((value) => value > 0).length;
-
-      statusMessage.textContent = `Extracted — ${active} skill${
-        active !== 1 ? 's' : ''
-      } gained XP this round.`;
+      displayStats(response.data);
+      setStatus('');
 
       await copyToClipboard();
     },
   );
+}
+
+function xpPerSec(xp, duration) {
+  return duration ? (xp / duration).toFixed(2) : xp;
+}
+
+function formatDuration(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function displayStats(data) {
+  const { artistTitle, version, duration, difficulty, skills, backgroundUrl } =
+    data;
+  const skillOrder = data.skillOrder ?? SKILL_ORDER;
+
+  if (backgroundUrl) {
+    songBackground.src = backgroundUrl;
+    songBackground.hidden = false;
+  } else {
+    songBackground.hidden = true;
+  }
+
+  songTitle.textContent = artistTitle || 'Unknown Song';
+
+  const versionText = version ? `${version} ` : '';
+  const diffHTML =
+    difficulty != null
+      ? `<span class="song-difficulty"><span class="star">\u2605</span>${difficulty.toFixed(
+          2,
+        )}</span>`
+      : '';
+  songVersion.innerHTML = versionText + diffHTML;
+  songDuration.textContent = duration ? formatDuration(duration) : '';
+  skillsGrid.innerHTML = '';
+
+  skillOrder.forEach((skillName) => {
+    const xp = skills[skillName] ?? 0;
+
+    if (xp > 0) {
+      const card = document.createElement('div');
+      const name = document.createElement('p');
+      const value = document.createElement('p');
+
+      card.className = 'skill-card';
+      name.className = 'skill-name';
+      name.textContent = skillName;
+      value.className = 'skill-value';
+      value.innerHTML = `${xpPerSec(xp, duration)}<span class="unit">/s</span>`;
+
+      card.appendChild(name);
+      card.appendChild(value);
+      skillsGrid.appendChild(card);
+    }
+  });
+
+  const totalXP = Object.values(skills).reduce((sum, xp) => sum + xp, 0);
+
+  totalXpValue.innerHTML = `${xpPerSec(
+    totalXP,
+    duration,
+  )}<span class="unit">/s</span>`;
+  totalXpDiv.hidden = false;
 }
 
 async function copyToClipboard() {
@@ -80,26 +185,27 @@ async function copyToClipboard() {
 
   try {
     await navigator.clipboard.writeText(extractedText);
-
-    copyFeedback.hidden = false;
-    setTimeout(() => {
-      copyFeedback.hidden = true;
-    }, 2000);
+    showCopyFeedback('Copied to clipboard!');
   } catch (err) {
     chrome.runtime.sendMessage(
       { type: 'COPY_TO_CLIPBOARD', text: extractedText },
       (response) => {
         if (response?.success) {
-          copyFeedback.hidden = false;
-          setTimeout(() => {
-            copyFeedback.hidden = true;
-          }, 2000);
+          showCopyFeedback('Copied to clipboard!');
         } else {
-          statusMessage.textContent = 'Failed to copy to clipboard.';
+          setStatus('Failed to copy to clipboard.');
         }
       },
     );
   }
+}
+
+function showCopyFeedback(message) {
+  copyFeedback.textContent = message;
+  copyFeedback.hidden = false;
+  setTimeout(() => {
+    copyFeedback.hidden = true;
+  }, 2000);
 }
 
 extractButton.addEventListener('click', extractFromPage);

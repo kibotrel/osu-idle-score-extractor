@@ -8,24 +8,35 @@
   </head>
   <body>
     <header>
-      <h1>osu!idle Score extractor</h1>
+      <h1>osu!idle Score Extractor</h1>
     </header>
 
     <main>
-      <section id="status-section">
-        <p id="status-message">Click "Extract" to read data from the page.</p>
-      </section>
+      <section id="stats-section" hidden>
+        <div id="song-info" class="song-info">
+          <img id="song-background" class="song-background" hidden />
+          <div class="song-meta">
+            <p id="song-title" class="song-title"></p>
+            <div class="song-details">
+              <p id="song-version" class="song-version"></p>
+              <p id="song-duration" class="song-duration"></p>
+            </div>
+          </div>
+        </div>
 
-      <section id="preview-section" hidden>
-        <label for="data-preview">Preview:</label>
-        <textarea id="data-preview" readonly rows="6"></textarea>
+        <div id="skills-grid" class="skills-grid"></div>
+
+        <div id="total-xp" class="total-xp" hidden>
+          <span class="label">Total XP</span>
+          <span id="total-value" class="value">0</span>
+        </div>
       </section>
 
       <div class="actions">
         <button id="btn-extract" class="btn btn-primary">Extract</button>
       </div>
 
-      <p id="copy-feedback" hidden>Copied to clipboard!</p>
+      <div id="copy-feedback" hidden></div>
     </main>
 
     <script src="popup.js"></script>
