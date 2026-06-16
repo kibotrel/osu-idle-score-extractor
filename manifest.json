@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "osu!idle Score extractor",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Extract various data from an osu!idle scoreboard",
   "permissions": ["activeTab", "scripting", "clipboardWrite"],
 
