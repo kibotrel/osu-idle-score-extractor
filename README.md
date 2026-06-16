@@ -1,5 +1,8 @@
 # osu!idle Score Extractor
 
+[![License](https://img.shields.io/github/license/kibotrel/osu-idle-score-extractor)](./LICENSE)
+![GitHub contributors](https://img.shields.io/github/contributors/kibotrel/osu-idle-score-extractor)
+
 A Chrome extension that extracts XP statistics from osu!idle game result screens and exports them for analysis and tracking.
 
 ## 🎯 Extension Capabilities
