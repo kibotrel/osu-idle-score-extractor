@@ -12,29 +12,29 @@ A Chrome browser extension for **osu! Idle** (a rhythm game) that extracts XP (e
 
 - Scrapes XP gains from 11 different skills in the game
 - Skills tracked: Accuracy, Stamina, Consistency, Reading, Concentration, Speed Jam, Speed, Coordination, Jack Speed, Memory, Release
-- Extracts song metadata: artist name, title, version, duration
+- Extracts song metadata: artist name, title, version, difficulty rating, duration
 
-### 2. Dual Output Formats
+### 2. Export Format
 
-- **Preview Format** (human-readable): Shows each skill's XP per second gain
-  - Example: `Accuracy: 25.50 xp/s`
-  - Includes total XP calculation
 - **Full Format** (machine-readable): Tab-separated values for spreadsheets
   - Columns: Artist Title | Version | Duration | [11 skill XP values] | Total XP
   - All values are XP per second rates
+  - Automatically copied to clipboard on extraction
 
 ### 3. Database Integration
 
-- Queries IndexedDB's `beatmaps` database to look up beatmap metadata
-- Uses beatmap metadata to calculate song duration
-- Enables accurate XP/s rate calculation for each skill
+- Queries IndexedDB's `beatmaps` database (created by the osu.idle site) using a single connection
+- Uses the `meta` object store to look up beatmap metadata (duration, difficulty, ID)
+- Uses the `files` object store to retrieve beatmap background images stored as blobs
+- Background images are converted to base64 data URLs for display in the popup
 
-### 4. Simple User Interface
+### 4. User Interface
 
-- Extract button: Parses current page and displays preview
-- Copy button: Copies formatted data to clipboard
-- Live preview textarea showing extracted data
-- Status messages for user feedback
+- Extract button: Parses current page, displays skill cards, and auto-copies to clipboard
+- **Beatmap card** with background image from IndexedDB, song title (bold), version with star difficulty rating, and duration
+- Visual skill cards grid showing XP/s per active skill
+- Total XP/s summary with highlighted display
+- Status messages and copy feedback for user feedback
 
 ## Architecture
 
@@ -56,7 +56,7 @@ osu-idle-xp-export/
 
 ### Key Components
 
-#### content.js (186 lines)
+#### content.js (~242 lines)
 
 **Purpose:** Content script injected into osu.idle pages for data extraction
 
@@ -64,36 +64,52 @@ osu-idle-xp-export/
 
 - `extractMapMeta()` - Parses song title and version from DOM
 - `extractSkills()` - Extracts XP gains for all 11 skills from result screen
-- `queryBeatmapMeta(artistTitle)` - Queries IndexedDB for beatmap duration
-- `formatPreview(data)` - Formats data for human-readable preview
+- `blobToDataURL(blob)` - Converts a Blob to a base64 data URL string via FileReader
+- `queryBeatmapData(artistTitle)` - Queries IndexedDB in a single connection for both beatmap metadata (`meta` store) and background image blob (`files` store). Returns `{ record, backgroundBlob }`
+- `xpPerSec(xp, duration)` - Calculates XP per second rate
 - `formatFull(data)` - Formats data as tab-separated values
-- `extractAll()` - Main async function coordinating all extraction steps
+- `extractAll()` - Main async function coordinating all extraction steps; returns artistTitle, version, duration, difficulty, skills, and backgroundUrl
 
 **Message Handler:** Listens for `EXTRACT_DATA` messages from popup
 
-#### popup.js (96 lines)
+#### popup.js (~211 lines)
 
 **Purpose:** Handles popup UI interactions
 
 **Main Functions:**
 
-- `extractFromPage()` - Sends message to content script and processes response
-- `copyToClipboard()` - Copies formatted data to clipboard with fallback mechanism
+- `extractFromPage()` - Sends message to content script, displays results, and auto-copies
+- `displayStats(data)` - Renders beatmap card (background image, title, version with star difficulty, duration) and skill cards grid with total XP display
+- `formatDuration(seconds)` - Formats seconds as `m:ss`
+- `copyToClipboard()` - Copies formatted data to clipboard with background script fallback
+- `showCopyFeedback(message)` - Shows temporary copy success feedback
 
 **Event Listeners:**
 
 - Extract button click → `extractFromPage()`
-- Copy button click → `copyToClipboard()`
 
-#### popup.html (34 lines)
+#### popup.html (~46 lines)
 
 **Structure:**
 
 - Header with extension title
-- Status message display
-- Data preview textarea
-- Action buttons (Extract, Copy)
+- Status message paragraph (hidden when empty via CSS)
+- Stats section with:
+  - Song info card: background image (`<img>` from IndexedDB blob), song title, version + star difficulty rating, duration
+  - Skill cards grid (3-column)
+  - Total XP bar with yellow accent
+- Extract button
 - Copy feedback message
+
+#### popup.css (~260 lines)
+
+**Notable styling:**
+
+- Dark theme (background `#0a0a0b`, text `#fafafa`)
+- Song info card uses the beatmap background image at 30% opacity behind the text, with `position: relative` / `absolute` layering and `overflow: hidden`
+- Song title, version, and duration have `text-shadow` for readability over the background image
+- Star difficulty rating uses muted grey (`--color-primary-2`) with inline-flex alignment; yellow (`--color-yellow-400`) is used only for the Total XP value
+- Version and duration displayed on the same row via flexbox `justify-content: space-between`
 
 ## Technical Details
 
@@ -108,10 +124,12 @@ osu-idle-xp-export/
 
 ### IndexedDB Access
 
-- Database name: `beatmaps`
-- Object store: `meta`
-- Query by: Artist - Title concatenation
-- Returns: Beatmap metadata including `versions` array with `total_length`
+- Database name: `beatmaps` (created by the osu.idle site, not by this extension)
+- Object stores accessed:
+  - `meta` - Beatmap metadata. Queried by cursor iteration matching `"${artist} - ${title}"`. Records contain `id`, `artist`, `title`, and `versions` array (each with `version`, `total_length`, `difficulty`, `background`)
+  - `files` - Beatmap assets stored as blobs. Keys are `"{beatmapSetId}/{filename}"` (e.g., `1174308/bg.png`). Values are raw `Blob` objects
+- Single DB connection is opened and reused for both `meta` and `files` queries
+- Background blob lookup uses `IDBKeyRange.bound()` with the beatmap set ID prefix for efficient key range scanning
 
 ### Permissions
 
@@ -126,12 +144,15 @@ osu-idle-xp-export/
 2. User clicks "Extract" button in popup
 3. Popup sends `EXTRACT_DATA` message to content script
 4. Content script:
-   - Extracts song metadata from DOM
+   - Extracts song metadata (artist-title, version) from DOM
    - Extracts skill XP data from DOM
-   - Queries IndexedDB for beatmap duration
-   - Returns formatted data
-5. Popup displays preview and enables Copy button
-6. User clicks "Copy" to copy full format data to clipboard
+   - Opens IndexedDB `beatmaps` database (single connection)
+   - Queries `meta` store for matching beatmap record (duration, difficulty, ID)
+   - Queries `files` store for background image blob using the record's ID as key prefix
+   - Converts background blob to base64 data URL
+   - Returns all extracted data to popup
+5. Popup displays beatmap card with background image, skill cards, and total XP
+6. Formatted data is auto-copied to clipboard
 
 ## Current Limitations
 
@@ -139,12 +160,14 @@ osu-idle-xp-export/
 - Requires result screen to be visible on page
 - Depends on beatmap metadata being in IndexedDB (falls back to null duration if not found)
 - XP/s calculation shows as plain XP if duration is unavailable
+- Background image display falls back gracefully (hidden) if not found in IndexedDB
+- Meta store lookup uses cursor iteration (no index on artist/title), which scales linearly with the number of stored beatmaps
 
 ---
 
-**Last Updated:** 2026-06-16
+**Last Updated:** 2026-06-17
 **Status:** Fully functional Chrome extension
 
 ## Important Notes for Future Sessions
 
-⚠️ **AUTOMATIC DOCUMENTATION UPDATES**: This file is automatically updated whenever code modifications are made. Always refer to this file as the source of truth for the project's current state. Do not rely on outdated information—if you're unsure about any implementation details, check this file first.
+This file is automatically updated whenever code modifications are made. Always refer to this file as the source of truth for the project's current state. Do not rely on outdated information -- if you're unsure about any implementation details, check this file first.
