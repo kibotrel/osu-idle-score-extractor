@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>osu! Idle XP Export</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>osu!idle Score extractor</h1>
+    </header>
+
+    <main>
+      <section id="status-section">
+        <p id="status-message">Click "Extract" to read data from the page.</p>
+      </section>
+
+      <section id="preview-section" hidden>
+        <label for="data-preview">Preview:</label>
+        <textarea id="data-preview" readonly rows="6"></textarea>
+      </section>
+
+      <div class="actions">
+        <button id="btn-extract" class="btn btn-primary">Extract</button>
+      </div>
+
+      <p id="copy-feedback" hidden>Copied to clipboard!</p>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "osu!idle Score extractor",
+  "version": "0.0.1",
+  "description": "Extract various data from an osu!idle scoreboard",
+  "permissions": ["activeTab", "scripting", "clipboardWrite"],
+
+  "host_permissions": ["https://osu.idle.rhythmgamers.net/*"],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "192": "icons/192.png",
+      "512": "icons/512.png"
+    }
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://osu.idle.rhythmgamers.net/*"],
+      "js": ["content/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "background": {
+    "service_worker": "background/background.js"
+  },
+
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "192": "icons/192.png",
+    "512": "icons/512.png"
+  }
+}
