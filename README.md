@@ -1,18 +1,19 @@
 # osu!idle Score Extractor
 
-A Chrome extension that extracts score data from osu!idle game results and exports it for analysis and tracking.
+A Chrome extension that extracts XP statistics from osu!idle game result screens and exports them for analysis and tracking.
 
 ## 🎯 Extension Capabilities
 
 **Data Extraction**
 
-- Automatically parses XP gains across 11 distinct skills present in the game.
-- Captures song metadata including artist name, difficulty, and duration
+- Parses XP gains across 11 distinct skills
+- Captures song metadata including artist name, title, version, difficulty rating, and duration and background image
 
-**Dual Export Formats**
+**User Interface**
 
-- **Preview Format**: Human-readable display showing each skill's XP gains and total XP earned
-- **Full Format**: Tab-separated values optimized for spreadsheet import and data analysis
+- Beatmap card with background image (sourced from IndexedDB), song title, version with star difficulty rating, and duration
+- Skill cards grid showing XP per second for each active skill
+- Total XP/s summary with highlighted display
 
 ### 🔐 Permissions & Access
 
@@ -27,19 +28,19 @@ A Chrome extension that extracts score data from osu!idle game results and expor
 2. Navigate to an osu!idle result page
 3. Click the extension icon to open the popup
 4. Click **Extract** to parse the result
-5. Data is automatically copied to clipboard in full format (with preview displayed)
+5. Data is automatically copied to clipboard in full format
 
 ## 📁 Project Structure
 
 ```
 ├── content/content.js          # Data extraction and formatting logic
 ├── popup/
-│   ├── popup.html             # Extension UI markup
-│   ├── popup.js               # UI interaction handling
-│   └── popup.css              # Styling
+│   ├── popup.html              # Extension UI markup
+│   ├── popup.js                # UI interaction handling
+│   └── popup.css               # Styling
 ├── background/background.js    # Service worker for clipboard fallback
-├── icons/                      # Extension icons
-└── manifest.json              # Chrome extension configuration
+├── icons/                      # Extension icons (16, 32, 192, 512 px)
+└── manifest.json               # Chrome extension configuration (Manifest V3)
 ```
 
 See [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for detailed technical documentation.
