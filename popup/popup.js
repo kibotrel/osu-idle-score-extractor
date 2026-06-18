@@ -137,17 +137,24 @@ function displayStats(data) {
   }
 
   songTitle.textContent = artistTitle || 'Unknown Song';
+  songVersion.replaceChildren();
 
-  const versionText = version ? `${version} ` : '';
-  const diffHTML =
-    difficulty != null
-      ? `<span class="song-difficulty"><span class="star">\u2605</span>${difficulty.toFixed(
-          2,
-        )}</span>`
-      : '';
-  songVersion.innerHTML = versionText + diffHTML;
+  if (version) {
+    songVersion.appendChild(document.createTextNode(version + ' '));
+  }
+  if (difficulty != null) {
+    const diffSpan = document.createElement('span');
+    const star = document.createElement('span');
+
+    diffSpan.className = 'song-difficulty';
+    star.className = 'star';
+    star.textContent = '\u2605';
+    diffSpan.appendChild(star);
+    diffSpan.appendChild(document.createTextNode(difficulty.toFixed(2)));
+    songVersion.appendChild(diffSpan);
+  }
   songDuration.textContent = duration ? formatDuration(duration) : '';
-  skillsGrid.innerHTML = '';
+  skillsGrid.replaceChildren();
 
   skillOrder.forEach((skillName) => {
     const xp = skills[skillName] ?? 0;
@@ -156,12 +163,16 @@ function displayStats(data) {
       const card = document.createElement('div');
       const name = document.createElement('p');
       const value = document.createElement('p');
+      const unit = document.createElement('span');
 
       card.className = 'skill-card';
       name.className = 'skill-name';
       name.textContent = skillName;
       value.className = 'skill-value';
-      value.innerHTML = `${xpPerSec(xp, duration)}<span class="unit">/s</span>`;
+      value.appendChild(document.createTextNode(xpPerSec(xp, duration)));
+      unit.className = 'unit';
+      unit.textContent = '/s';
+      value.appendChild(unit);
 
       card.appendChild(name);
       card.appendChild(value);
@@ -170,11 +181,15 @@ function displayStats(data) {
   });
 
   const totalXP = Object.values(skills).reduce((sum, xp) => sum + xp, 0);
+  const totalUnit = document.createElement('span');
 
-  totalXpValue.innerHTML = `${xpPerSec(
-    totalXP,
-    duration,
-  )}<span class="unit">/s</span>`;
+  totalXpValue.replaceChildren();
+  totalXpValue.appendChild(
+    document.createTextNode(xpPerSec(totalXP, duration)),
+  );
+  totalUnit.className = 'unit';
+  totalUnit.textContent = '/s';
+  totalXpValue.appendChild(totalUnit);
   totalXpDiv.hidden = false;
 }
 
