@@ -2,21 +2,26 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTPUT_DIR="$SCRIPT_DIR/builds"
-VERSION="$(grep '"version"' "$SCRIPT_DIR/manifest.json" | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/')"
-OUTPUT_FILE="$OUTPUT_DIR/${VERSION}.zip"
+OUTPUT_DIR="builds"
+VERSION="$(grep '"version"' manifest.json | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/')"
+
+TMP_DIR="$(mktemp -d)"
+BUNDLE_FILES=(background/ content/ icons/ popup/ LICENSE README.md)
 
 mkdir -p "$OUTPUT_DIR"
-cd "$SCRIPT_DIR"
 
-zip -r "$OUTPUT_FILE" \
-  background/ \
-  content/ \
-  icons/ \
-  popup/ \
-  LICENSE \
-  manifest.json \
-  README.md
+CHROME_OUTPUT_FILE="$OUTPUT_DIR/${VERSION}-chrome.zip"
 
-echo "Created: $OUTPUT_FILE"
+jq '. + {"background": {"service_worker": "background/background.js"}}' manifest.json > "$TMP_DIR/manifest.json"
+zip -j "$CHROME_OUTPUT_FILE" "$TMP_DIR/manifest.json"
+zip -r "$CHROME_OUTPUT_FILE" "${BUNDLE_FILES[@]}"
+echo "Created: $CHROME_OUTPUT_FILE"
+
+FIREFOX_OUTPUT_FILE="$OUTPUT_DIR/${VERSION}-firefox.zip"
+
+jq '. + {"background": {"scripts": ["background/background.js"]}}' manifest.json > "$TMP_DIR/manifest.json"
+zip -j "$FIREFOX_OUTPUT_FILE" "$TMP_DIR/manifest.json"
+zip -r "$FIREFOX_OUTPUT_FILE" "${BUNDLE_FILES[@]}"
+echo "Created: $FIREFOX_OUTPUT_FILE"
+
+rm -rf "$TMP_DIR"
