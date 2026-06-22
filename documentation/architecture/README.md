@@ -6,7 +6,7 @@ Overview of the osu-idle-score-extractor extension architecture.
 
 ```
 osu-idle-score-extractor/
-├── manifest.json                  # Browser-agnostic MV3 manifest
+├── manifest.json                  # Browser-agnostic Manifest V3 manifest
 ├── build.sh                       # Build script producing Chrome + Firefox zips
 ├── content/
 │   └── content.js                 # Content script — DOM extraction + IndexedDB queries
@@ -23,18 +23,18 @@ osu-idle-score-extractor/
 
 ## Component Roles
 
-| **Component**   | **Context**     | **Responsibilities**                                                                                     |
-| --------------- | --------------- | -------------------------------------------------------------------------------------------------------- |
-| `content.js`    | osu.idle page   | Extracts DOM data (map metadata, skill XP), queries IndexedDB for beatmap data                           |
-| `popup.js`      | Extension popup | Sends extraction request, receives result, renders UI (beatmap card + skill cards)                       |
-| `popup.html`    | Extension popup | Static HTML shell; dynamic content injected by `popup.js`                                                |
-| `popup.css`     | Extension popup | Dark theme, background image layering, skill card grid layout                                            |
-| `background.js` | Service worker  | Handles clipboard write fallback when popup cannot access clipboard directly                             |
-| `manifest.json` | Browser runtime | Declares permissions, content script rules, popup, icons; browser-specific fields injected at build time |
+| **Component**   | **Context**           | **Responsibilities**                                                                                     |
+| --------------- | --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `content.js`    | osu.idle page         | Extracts DOM data (map metadata, skill XP), queries IndexedDB for beatmap data                           |
+| `popup.js`      | Extension popup       | Sends extraction request, receives result, renders UI (beatmap card + skill cards)                       |
+| `popup.html`    | Extension popup       | Static HTML shell; dynamic content injected by `popup.js`                                                |
+| `popup.css`     | Extension popup       | Dark theme, background image layering, skill card grid layout                                            |
+| `background.js` | Service worker        | Handles clipboard write fallback when popup cannot access clipboard directly                             |
+| `manifest.json` | Browser runtime (MV3) | Declares permissions, content script rules, popup, icons; browser-specific fields injected at build time |
 
 ## Messaging Protocol
 
-All communication between layers uses `chrome.runtime` messaging:
+All communication between layers uses the Manifest V3 `chrome.runtime` messaging (compatible with both Chrome and Firefox):
 
 ```javascript
 // popup.js → content.js

@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/kibotrel/osu-idle-score-extractor)](./LICENSE)
 ![GitHub contributors](https://img.shields.io/github/contributors/kibotrel/osu-idle-score-extractor)
 
-A Chrome extension that extracts XP statistics from osu!idle game result screens and exports them for analysis and tracking.
+A browser extension (Chrome & Firefox) that extracts XP statistics from osu!idle game result screens and exports them for analysis and tracking.
 
 <div align="center">
   <img width="412" height="543" alt="extension user interface" src="https://github.com/user-attachments/assets/31561498-28d1-4306-8a1d-16a08f4e82f2" />
@@ -31,11 +31,13 @@ A Chrome extension that extracts XP statistics from osu!idle game result screens
 
 ## 🚀 Quick Start
 
-1. Install the extension in Chrome
+1. Install the extension in [Chrome](https://chromewebstore.google.com/detail/osuidle-score-extractor/beifeckgfnepjdmolmbljbjfcenoibbo) or [Firefox](https://addons.mozilla.org/en-US/firefox/addon/osu-idle-score-extractor/)
 2. Navigate to an osu!idle result page
 3. Click the extension icon to open the popup
 4. Click **Extract** to parse the result
 5. Data is automatically copied to clipboard in full format
+
+See [Installation & Setup](./documentation/installation/README.md) for detailed browser-specific installation instructions from sources.
 
 ## 📁 Project Structure
 
@@ -47,7 +49,8 @@ A Chrome extension that extracts XP statistics from osu!idle game result screens
 │   └── popup.css               # Styling
 ├── background/background.js    # Service worker for clipboard fallback
 ├── icons/                      # Extension icons (16, 32, 192, 512 px)
-└── manifest.json               # Chrome extension configuration (Manifest V3)
+├── build.sh                    # Build script for Chrome + Firefox distributions
+└── manifest.json               # Browser-agnostic Manifest V3 configuration
 ```
 
-See [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for detailed technical documentation.
+See [documentation/](./documentation/README.md) for detailed technical documentation.

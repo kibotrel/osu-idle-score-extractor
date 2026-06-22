@@ -1,6 +1,6 @@
 # Documentation
 
-Reference documentation for **osu-idle-score-extractor**, a Manifest V3 browser extension that extracts XP statistics from osu!idle.
+Reference documentation for **osu-idle-score-extractor**, a Manifest V3 browser extension (Chrome & Firefox) that extracts XP statistics from osu!idle.
 
 ## [Architecture](./architecture/README.md)
 

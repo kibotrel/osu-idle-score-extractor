@@ -67,13 +67,13 @@ db.close();
 
 ## Service Worker Constraints (background.js)
 
-`background.js` runs as a Manifest V3 service worker. It has no access to:
+`background.js` runs as a Manifest V3 service worker (in both Chrome and Firefox). It has no access to:
 
 - The DOM (`document` is undefined)
 - `window` object
 - Persistent globals (service worker can be killed and restarted at any time)
 
-Code in `background.js` must be stateless and event-driven only.
+Code in `background.js` must be stateless and event-driven only. The `build.sh` script configures service worker declarations per browser (Chrome uses `service_worker`, Firefox uses `scripts`).
 
 ## CSS Conventions
 
