@@ -31,20 +31,6 @@ const totalXpDiv = document.getElementById('total-xp');
 const totalXpValue = document.getElementById('total-value');
 const copyFeedback = document.getElementById('copy-feedback');
 
-const SKILL_ORDER = [
-  'accuracy',
-  'stamina',
-  'consistency',
-  'reading',
-  'concentration',
-  'speedjam',
-  'speed',
-  'coordination',
-  'jackspeed',
-  'memory',
-  'release',
-];
-
 let extractedText = '';
 
 async function extractFromPage() {
@@ -72,45 +58,55 @@ async function extractFromPage() {
     setStatus('Extraction timed out. Try reloading the page.');
   }, 5000);
 
-  chrome.tabs.sendMessage(
-    tab.id,
-    { type: 'EXTRACT_DATA' },
-    async (response) => {
+  function handleExtractResponse(response) {
+    clearTimeout(timeout);
+
+    if (chrome.runtime.lastError) {
+      setStatus('Content script not available. Try reloading the page.');
+      setViewportHeight(viewMain);
+
+      return;
+    }
+
+    if (!response?.success) {
+      setStatus('Extraction failed.');
+      setViewportHeight(viewMain);
+
+      return;
+    }
+
+    const hasSkills = Object.values(response.data.skills).some((xp) => xp > 0);
+
+    if (!hasSkills) {
+      setStatus('No result screen found on this page.');
+      setViewportHeight(viewMain);
+
+      return;
+    }
+
+    extractedText = response.fullText ?? '';
+
+    statsSection.hidden = false;
+    copyFeedback.hidden = true;
+
+    displayStats(response.data);
+    setStatus('');
+    setViewportHeight(viewMain);
+
+    copyToClipboard();
+  }
+
+  chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_DATA' }, (response) => {
+    if (chrome.runtime.lastError) {
       clearTimeout(timeout);
+      setStatus('Content script not available. Try reloading the page.');
+      setViewportHeight(viewMain);
 
-      if (chrome.runtime.lastError) {
-        setStatus('Content script not available. Try reloading the page.');
+      return;
+    }
 
-        return;
-      }
-
-      if (!response?.success) {
-        setStatus('Extraction failed.');
-
-        return;
-      }
-
-      const hasSkills = Object.values(response.data.skills).some(
-        (xp) => xp > 0,
-      );
-
-      if (!hasSkills) {
-        setStatus('No result screen found on this page.');
-
-        return;
-      }
-
-      extractedText = response.fullText ?? '';
-
-      statsSection.hidden = false;
-      copyFeedback.hidden = true;
-
-      displayStats(response.data);
-      setStatus('');
-
-      await copyToClipboard();
-    },
-  );
+    handleExtractResponse(response);
+  });
 }
 
 function xpPerSec(xp, duration) {
@@ -125,9 +121,15 @@ function formatDuration(seconds) {
 }
 
 function displayStats(data) {
-  const { artistTitle, version, duration, difficulty, skills, backgroundUrl } =
-    data;
-  const skillOrder = data.skillOrder ?? SKILL_ORDER;
+  const {
+    artistTitle,
+    backgroundUrl,
+    difficulty,
+    duration,
+    skillOrder,
+    skills,
+    version,
+  } = data;
 
   if (backgroundUrl) {
     songBackground.src = backgroundUrl;

@@ -1,29 +1,29 @@
 const DEFAULT_SKILLS = {
-  accuracy: 0,
-  concentration: 0,
-  consistency: 0,
-  coordination: 0,
-  jackspeed: 0,
-  memory: 0,
-  reading: 0,
-  release: 0,
-  speed: 0,
-  speedjam: 0,
-  stamina: 0,
+  'Jack Speed': 0,
+  'Speed Jam': 0,
+  Accuracy: 0,
+  Concentration: 0,
+  Consistency: 0,
+  Coordination: 0,
+  Memory: 0,
+  Reading: 0,
+  Release: 0,
+  Speed: 0,
+  Stamina: 0,
 };
 
 const SKILL_ORDER = [
-  'accuracy',
-  'stamina',
-  'consistency',
-  'reading',
-  'concentration',
-  'speedjam',
-  'speed',
-  'coordination',
-  'jackspeed',
-  'memory',
-  'release',
+  'Accuracy',
+  'Stamina',
+  'Consistency',
+  'Reading',
+  'Concentration',
+  'Speed Jam',
+  'Speed',
+  'Coordination',
+  'Jack Speed',
+  'Memory',
+  'Release',
 ];
 
 function extractMapMeta() {
@@ -56,9 +56,7 @@ function extractSkills() {
   }
 
   container.querySelectorAll('.skillxp__row').forEach((row) => {
-    const name =
-      row.querySelector('.skillxp__name')?.innerText?.trim().toLowerCase() ??
-      '';
+    const name = row.querySelector('.skillxp__name')?.innerText?.trim();
     const gainRaw =
       row.querySelector('.skillxp__gain')?.innerText?.trim() ?? '';
     const xp = parseInt(gainRaw.replace(/[^0-9]/g, ''), 10) || 0;
@@ -221,7 +219,15 @@ async function extractAll() {
     }
   }
 
-  return { artistTitle, version, duration, difficulty, skills, backgroundUrl };
+  return {
+    artistTitle,
+    backgroundUrl,
+    difficulty,
+    duration,
+    skillOrder: SKILL_ORDER,
+    skills,
+    version,
+  };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -237,6 +243,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch(() => {
         sendResponse({ success: false });
       });
+
+    return true;
   }
-  return true;
 });
