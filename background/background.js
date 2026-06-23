@@ -3,7 +3,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const text = message.text ?? '';
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tab = tabs[0];
+      const tab = tabs.at(0);
 
       if (!tab?.id) {
         sendResponse({ success: false, error: 'No active tab' });
@@ -14,7 +14,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       chrome.scripting.executeScript(
         {
           target: { tabId: tab.id },
-
           func: (textToCopy) => {
             return navigator.clipboard
               .writeText(textToCopy)
