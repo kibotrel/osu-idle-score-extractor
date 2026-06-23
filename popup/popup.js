@@ -1,8 +1,142 @@
 const extractButton = document.getElementById('btn-extract');
-const mainElement = document.querySelector('main');
+const mainElement = document.querySelector('#view-main main');
 const statsSection = document.getElementById('stats-section');
+const viewport = document.getElementById('viewport');
+const settingsButton = document.getElementById('btn-settings');
+const backButton = document.getElementById('btn-back');
+
+const profileSkillsContainer = document.getElementById('profile-skills');
+const characterCard = document.getElementById('character-card');
+const characterNameElement = document.getElementById('character-name');
+const characterAvatarElement = document.getElementById('character-avatar');
+const characterAvatarPlaceholder = document.getElementById(
+  'character-avatar-placeholder',
+);
+const characterGlobalLevelElement = document.getElementById(
+  'character-global-level',
+);
 
 let statusMessageElement = null;
+let characterSkills = [];
+
+function formatXp(value) {
+  return value.toLocaleString('en-US').replace(/,/g, ' ');
+}
+
+function renderCharacterSkills() {
+  profileSkillsContainer.replaceChildren();
+
+  characterSkills.forEach((skill) => {
+    const card = document.createElement('div');
+    const header = document.createElement('div');
+    const skillNameElement = document.createElement('span');
+    const levelElement = document.createElement('span');
+    const track = document.createElement('div');
+    const fill = document.createElement('div');
+
+    const percent = skill.xpToNext > 0 ? (skill.xp / skill.xpToNext) * 100 : 0;
+
+    card.className = 'profile-skill';
+    card.title =
+      formatXp(skill.xp) +
+      ' / ' +
+      formatXp(skill.xpToNext) +
+      ' XP to next level';
+
+    header.className = 'profile-skill__header';
+
+    skillNameElement.className = 'profile-skill__name';
+    skillNameElement.textContent = skill.name;
+
+    levelElement.className = 'profile-skill__level';
+    levelElement.textContent = String(skill.level);
+
+    header.appendChild(skillNameElement);
+    header.appendChild(levelElement);
+
+    track.className = 'profile-skill__track';
+    fill.className = 'profile-skill__fill';
+    fill.style.width = percent.toFixed(2) + '%';
+
+    track.appendChild(fill);
+    card.appendChild(header);
+    card.appendChild(track);
+    profileSkillsContainer.appendChild(card);
+  });
+}
+
+function renderCharacterCard(name, avatarUrl, globalLevel) {
+  characterNameElement.textContent = name || 'Character not found';
+  characterNameElement.classList.toggle('character-name--not-found', !name);
+
+  if (globalLevel != null) {
+    characterGlobalLevelElement.textContent = `Lv. ${globalLevel}`;
+    characterGlobalLevelElement.hidden = false;
+  } else {
+    characterGlobalLevelElement.hidden = true;
+  }
+
+  if (avatarUrl) {
+    characterAvatarElement.src = avatarUrl;
+    characterAvatarElement.hidden = false;
+    characterAvatarPlaceholder.hidden = true;
+  } else {
+    characterAvatarElement.hidden = true;
+    characterAvatarPlaceholder.hidden = false;
+  }
+}
+
+const viewMain = document.getElementById('view-main');
+const viewSettings = document.getElementById('view-settings');
+const characterIdInput = document.getElementById('input-character-id');
+
+function setViewportHeight(view) {
+  requestAnimationFrame(() => {
+    viewport.style.height = view.scrollHeight + 'px';
+  });
+}
+
+function navigateTo(showSettings) {
+  viewport.classList.toggle('show-settings', showSettings);
+  setViewportHeight(showSettings ? viewSettings : viewMain);
+}
+
+settingsButton.addEventListener('click', () => navigateTo(true));
+backButton.addEventListener('click', () => navigateTo(false));
+
+async function saveCharacterId() {
+  let id = parseInt(characterIdInput.value, 10);
+
+  if (!id || Number.isNaN(id)) {
+    id = 0;
+  }
+
+  await chrome.storage.local.set({ characterId: id });
+
+  try {
+    const result = await requestProfileDataFromBackground(id);
+
+    characterSkills = result.skills;
+    renderCharacterCard(
+      result.characterName,
+      result.characterAvatarUrl,
+      result.globalLevel,
+    );
+  } catch {
+    // Keep whatever is currently rendered.
+  }
+
+  renderCharacterSkills();
+  setViewportHeight(viewSettings);
+}
+
+characterIdInput.addEventListener('blur', saveCharacterId);
+
+characterIdInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    characterIdInput.blur();
+  }
+});
 
 function setStatus(text) {
   if (!text) {
@@ -220,9 +354,79 @@ async function copyToClipboard() {
 function showCopyFeedback(message) {
   copyFeedback.textContent = message;
   copyFeedback.hidden = false;
+  setViewportHeight(viewMain);
   setTimeout(() => {
     copyFeedback.hidden = true;
+    setViewportHeight(viewMain);
   }, 2000);
 }
 
 extractButton.addEventListener('click', extractFromPage);
+
+function requestProfileDataFromBackground(characterId) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      { type: 'FETCH_CHARACTER_DATA', characterId },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+
+          return;
+        }
+
+        if (response?.success) {
+          resolve({
+            characterId: response.characterId ?? null,
+            characterName: response.characterName ?? null,
+            characterAvatarUrl: response.characterAvatarUrl ?? null,
+            skills: response.skills,
+            globalLevel: response.globalLevel ?? null,
+          });
+        } else {
+          reject(new Error(response?.error ?? 'Unknown error'));
+        }
+      },
+    );
+  });
+}
+
+async function init() {
+  const stored = await chrome.storage.local.get([
+    'characterId',
+    'characterAvatarUrl',
+    'characterName',
+    'skills',
+    'globalLevel',
+  ]);
+  const characterId = stored.characterId ?? 0;
+
+  if (characterId) {
+    characterIdInput.value = characterId;
+  }
+
+  characterSkills = stored.skills ?? [];
+  renderCharacterCard(
+    stored.characterName ?? null,
+    stored.characterAvatarUrl ?? null,
+    stored.globalLevel ?? null,
+  );
+  renderCharacterSkills();
+
+  try {
+    const result = await requestProfileDataFromBackground(characterId);
+
+    characterSkills = result.skills;
+    renderCharacterCard(
+      result.characterName,
+      result.characterAvatarUrl,
+      result.globalLevel,
+    );
+  } catch {
+    // Keep whatever is currently rendered.
+  }
+
+  renderCharacterSkills();
+  setViewportHeight(viewMain);
+}
+
+init();
