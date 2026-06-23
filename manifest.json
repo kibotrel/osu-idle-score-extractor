@@ -5,7 +5,11 @@
   "description": "Extract various data from an osu!idle scoreboard",
   "permissions": ["activeTab", "clipboardWrite", "scripting", "storage"],
 
-  "host_permissions": ["https://osu.idle.rhythmgamers.net/*"],
+  "host_permissions": [
+    "https://a.ppy.sh/*",
+    "https://api.osu.idle.rhythmgamers.net/*",
+    "https://osu.idle.rhythmgamers.net/*"
+  ],
 
   "action": {
     "default_popup": "popup/popup.html",
