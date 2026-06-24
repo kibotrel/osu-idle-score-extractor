@@ -83,7 +83,7 @@ function blobToDataURL(blob) {
   });
 }
 
-function queryBeatmapData(artistTitle) {
+function queryBeatmapData(artistTitle, version) {
   return new Promise((resolve) => {
     const request = indexedDB.open('beatmaps');
 
@@ -117,6 +117,14 @@ function queryBeatmapData(artistTitle) {
         const recordKey = `${record.artist} - ${record.title}`;
 
         if (recordKey !== artistTitle) {
+          return cursor.continue();
+        }
+
+        const hasVersion =
+          Array.isArray(record.versions) &&
+          record.versions.some((v) => v.version === version);
+
+        if (!hasVersion) {
           return cursor.continue();
         }
 
@@ -200,7 +208,10 @@ async function extractAll() {
   let backgroundUrl = null;
 
   if (artistTitle) {
-    const { record, backgroundBlob } = await queryBeatmapData(artistTitle);
+    const { record, backgroundBlob } = await queryBeatmapData(
+      artistTitle,
+      version,
+    );
 
     if (record?.versions) {
       const match = record.versions.find((v) => v.version === version);
